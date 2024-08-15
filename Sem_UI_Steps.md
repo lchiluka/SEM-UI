@@ -70,7 +70,3 @@ Now run the script for the UI.
 
 If you make changes to the script, instead of refreshing the URL in the browser, please make sure to restart the Anaconda terminal and run the script again. This would help solve any screen-struck issues.
 
-**Image Format:** JPEG  
-**Dimensions:** 742 x 119  
-**XResolution:** 220  
-**YResolution:** 220
