@@ -63,7 +63,9 @@ Now run the script for the UI.
 3. Test the Network URL. The URL might change every time if you re-run the script. Double-check and provide the new URL to the users.
 
 4. Bi-weekly login into RDP and check if the script is running
-5. If you make changes to the script, instead of refreshing the URL in the browser, please make sure to restart the Anaconda terminal and run the script again. This would help solve any screen-struck issues.
+# Known Issues
+1. The Anaconda terminal should remain running in the background continuously to ensure uninterrupted access to the web app
+2. If you make changes to the script, please make sure to close the Anaconda terminal, reopen it and run the script again. This would help solve any screen-struck issues.
 
 ## URL
 
