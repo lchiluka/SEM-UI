@@ -18,6 +18,7 @@ folder_in_sharepoint = '/teams/CCMRD7857/RDrive/Analytical/2024%20Projects/Insul
 
 # Function to log messages
 def log(message):
+    """Logs a message to the Streamlit interface."""
     st.write(message)
 
 if "overall_execution_time" not in st.session_state:
@@ -29,6 +30,16 @@ if "unprocessed_images" not in st.session_state:
 
 # Function to authenticate to SharePoint
 def authenticate_to_sharepoint(username, password):
+    """
+    Authenticates a user to SharePoint using the provided username and password.
+    
+    Args:
+        username (str): The SharePoint username.
+        password (str): The SharePoint password.
+
+    Returns:
+        ClientContext: The authenticated SharePoint client context, or None if authentication fails.
+    """
     try:
         auth_ctx = AuthenticationContext(sharepoint_base_url)
         if auth_ctx.acquire_token_for_user(username, password):
@@ -46,6 +57,16 @@ def authenticate_to_sharepoint(username, password):
 
 # Function to get available folders from SharePoint
 def get_available_folders(ctx, folder_url):
+    """
+    Retrieves a list of available folders from a specified SharePoint folder URL.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        folder_url (str): The relative URL of the SharePoint folder.
+
+    Returns:
+        list: A list of folder names within the specified SharePoint folder.
+    """
     try:
         folder = ctx.web.get_folder_by_server_relative_url(folder_url)
         folder.expand(["Folders"]).get().execute_query()
@@ -57,6 +78,16 @@ def get_available_folders(ctx, folder_url):
 
 # Function to get PNG files in a SharePoint folder
 def get_png_files_in_folder(ctx, folder_url):
+    """
+    Retrieves a list of PNG files from a specified SharePoint folder URL.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        folder_url (str): The relative URL of the SharePoint folder.
+
+    Returns:
+        list: A list of tuples containing the folder URL and file name for each PNG file.
+    """
     png_files = []
     folder = ctx.web.get_folder_by_server_relative_url(folder_url)
     folder.expand(["Files", "Folders"]).get().execute_query()
@@ -68,6 +99,19 @@ def get_png_files_in_folder(ctx, folder_url):
 
 # Function to create a folder in SharePoint
 def create_folder(ctx, parent_folder_url, new_folder_name, max_retries=5, initial_wait=1):
+    """
+    Creates a new folder in SharePoint under the specified parent folder.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        parent_folder_url (str): The relative URL of the parent folder in SharePoint.
+        new_folder_name (str): The name of the new folder to create.
+        max_retries (int): The maximum number of retry attempts in case of failure.
+        initial_wait (int): The initial wait time in seconds between retries.
+
+    Returns:
+        None
+    """
     attempt = 0
     while attempt < max_retries:
         try:
@@ -91,6 +135,17 @@ def create_folder(ctx, parent_folder_url, new_folder_name, max_retries=5, initia
 
 # Function to download a file from SharePoint
 def download_file(ctx, file_relative_url, local_path):
+    """
+    Downloads a file from SharePoint to a local path.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        file_relative_url (str): The relative URL of the file in SharePoint.
+        local_path (str): The local path where the file will be saved.
+
+    Returns:
+        None
+    """
     try:
         response = File.open_binary(ctx, file_relative_url)
         with open(local_path, "wb") as local_file:
@@ -102,6 +157,18 @@ def download_file(ctx, file_relative_url, local_path):
 
 # Function to upload a file to SharePoint
 def upload_file(ctx, target_folder_url, file_name, local_path):
+    """
+    Uploads a file from a local path to a specified SharePoint folder.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        target_folder_url (str): The relative URL of the target folder in SharePoint.
+        file_name (str): The name of the file to upload.
+        local_path (str): The local path of the file to upload.
+
+    Returns:
+        None
+    """
     try:
         with open(local_path, "rb") as local_file:
             file_content = local_file.read()
@@ -113,6 +180,16 @@ def upload_file(ctx, target_folder_url, file_name, local_path):
         st.session_state.unprocessed_images.append(local_path)
 
 def calculate_acs(image, pixel_to_um=2):
+    """
+    Calculates the Average Cell Size (ACS) in vertical and horizontal directions.
+    
+    Args:
+        image (numpy.ndarray): The binary image used to calculate ACS.
+        pixel_to_um (int, optional): The conversion factor from pixels to micrometers. Default is 2.
+
+    Returns:
+        tuple: The average vertical ACS and average horizontal ACS in micrometers.
+    """
     height, width = image.shape
     vertical_lines = np.linspace(0, width - 1, num=height // 20, dtype=int)
     horizontal_lines = np.linspace(0, height - 1, num=width // 20, dtype=int)
@@ -139,10 +216,36 @@ def calculate_acs(image, pixel_to_um=2):
     return avg_vertical_acs, avg_horizontal_acs
 
 def calculate_ar(vertical_acs, horizontal_acs):
+    """
+    Calculates the Anisotropy Ratio (AR) based on vertical and horizontal ACS.
+    
+    Args:
+        vertical_acs (float): The average vertical ACS.
+        horizontal_acs (float): The average horizontal ACS.
+
+    Returns:
+        float: The Anisotropy Ratio (AR).
+    """
     ar = vertical_acs / horizontal_acs if horizontal_acs > 0 else 0
     return ar
 
 def process_image(image_path, pixel_to_um=2):
+    """
+    Processes an image to extract cellular properties and calculates various metrics.
+    
+    Args:
+        image_path (str): The path to the image file.
+        pixel_to_um (int, optional): The conversion factor from pixels to micrometers. Default is 2.
+
+    Returns:
+        tuple: A tuple containing the following elements:
+            - regions_properties (list): A list of dictionaries with the properties of each region.
+            - solid_contours (list): A list of solid contours found in the image.
+            - color_image (numpy.ndarray): The processed color image.
+            - avg_vertical_acs (float): The average vertical ACS.
+            - avg_horizontal_acs (float): The average horizontal ACS.
+            - ar (float): The Anisotropy Ratio (AR).
+    """
     try:
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         blurred = cv2.GaussianBlur(image, (15, 15), 0)
@@ -256,6 +359,16 @@ def process_image(image_path, pixel_to_um=2):
         return [], [], None, 0, 0, 0
 
 def split_cells(labels, area_threshold):
+    """
+    Splits connected cells in a labeled image using distance transform and connected components analysis.
+    
+    Args:
+        labels (numpy.ndarray): The labeled image.
+        area_threshold (int): The minimum area threshold to consider a cell for splitting.
+
+    Returns:
+        numpy.ndarray: The re-labeled image after splitting cells.
+    """
     new_labels = np.zeros_like(labels)
     current_label = 1
     for i in range(1, labels.max() + 1):
@@ -276,11 +389,32 @@ def split_cells(labels, area_threshold):
     return new_labels
 
 def is_solid_region(contour):
+    """
+    Determines if a contour represents a solid region based on its area and perimeter.
+    
+    Args:
+        contour (numpy.ndarray): The contour to analyze.
+
+    Returns:
+        bool: True if the region is considered solid, False otherwise.
+    """
     area = cv2.contourArea(contour)
     perimeter = cv2.arcLength(contour, True)
     return area > 100 and perimeter / area < 0.1
 
 def calculate_statistics(df, avg_vertical_acs, avg_horizontal_acs, ar):
+    """
+    Calculates statistical metrics for a DataFrame of region properties and adds additional calculated metrics.
+    
+    Args:
+        df (pandas.DataFrame): The DataFrame containing region properties.
+        avg_vertical_acs (float): The average vertical ACS.
+        avg_horizontal_acs (float): The average horizontal ACS.
+        ar (float): The Anisotropy Ratio (AR).
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing calculated statistics.
+    """
     stats = df.describe().T
     stats['median'] = df.median()
     stats = stats[['mean', 'std', 'min', 'max', 'median']]
@@ -298,6 +432,18 @@ def calculate_statistics(df, avg_vertical_acs, avg_horizontal_acs, ar):
     return stats
 
 def plot_and_save_image(image, contours, centroids, output_path):
+    """
+    Plots and saves an image with overlaid contours and centroids.
+    
+    Args:
+        image (numpy.ndarray): The image to plot.
+        contours (list): A list of contours to overlay on the image.
+        centroids (list): A list of centroids to overlay on the image.
+        output_path (str): The path where the image will be saved.
+
+    Returns:
+        None
+    """
     plt.figure(figsize=(10, 10))
     plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     
@@ -312,6 +458,20 @@ def plot_and_save_image(image, contours, centroids, output_path):
     plt.close()
 
 def process_file(root, file, base_dir, export_dir, pixel_to_um=2):
+    """
+    Processes a single image file to extract and save region properties and statistics.
+    
+    Args:
+        root (str): The root directory of the image file.
+        file (str): The name of the image file.
+        base_dir (str): The base directory for processing.
+        export_dir (str): The directory where processed files will be saved.
+        pixel_to_um (int, optional): The conversion factor from pixels to micrometers. Default is 2.
+
+    Returns:
+        tuple: A tuple containing the subfolder key, file name, DataFrame of properties, average vertical ACS, 
+               average horizontal ACS, and Anisotropy Ratio (AR).
+    """
     try:
         image_path = os.path.join(root, file)
         properties, contours, processed_image, avg_vertical_acs, avg_horizontal_acs, ar = process_image(image_path, pixel_to_um)
@@ -329,6 +489,19 @@ def process_file(root, file, base_dir, export_dir, pixel_to_um=2):
         return None
 
 def traverse_and_process(base_dir, export_dir, max_files=2, pixel_to_um=2):
+    """
+    Traverses directories and processes image files to extract region properties, 
+    calculate statistics, and save results.
+    
+    Args:
+        base_dir (str): The base directory to traverse.
+        export_dir (str): The directory where processed files will be saved.
+        max_files (int, optional): The maximum number of files to process in each folder. Default is 2.
+        pixel_to_um (int, optional): The conversion factor from pixels to micrometers. Default is 2.
+
+    Returns:
+        None
+    """
     start_time = time.time()
     file_count = 0
 
@@ -425,6 +598,17 @@ def traverse_and_process(base_dir, export_dir, max_files=2, pixel_to_um=2):
     log(f"Total files processed: {file_count}")
 
 def process_folder_and_subfolders(ctx, folder_url):
+    """
+    Processes folders and subfolders in SharePoint, downloads image files, processes them locally,
+    and uploads the results back to SharePoint.
+    
+    Args:
+        ctx (ClientContext): The SharePoint client context.
+        folder_url (str): The relative URL of the folder to process in SharePoint.
+
+    Returns:
+        None
+    """
     folder_name = folder_url.split('/')[-1]
 
     # Skip folders that start with 'output_'
