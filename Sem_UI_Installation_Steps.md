@@ -52,7 +52,7 @@ Now run the script for the UI.
   **command:**
   streamlit run UI_SEM_Final_Code.py
 
-# Maintenance and Known Issues
+# Maintenance and Known Issues of Webapp
 ## In case of Outage/System Restart
 
 1. Re-open the Anaconda 3 Terminal using Anaconda Navigator.
@@ -70,5 +70,9 @@ Now run the script for the UI.
 - For SEM: `http://10.4.204.140:8501`
 
 
+# Script Maintenance
 
+1. Changing Sharepoint folder location
+
+   In the script UI_SEM_Final_Code.py, search for folder_in_sharepoint = '/teams/CCMRD7857/RDrive/Analytical/2024%20Projects/Insulation' and replace it with new URL.
 
