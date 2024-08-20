@@ -21,7 +21,8 @@ If you encounter errors, update using the following command:
   conda update streamlit
   
 ### Step 4
-Install all required libraries using the PIP command like below:
+Install all required libraries using the PIP command 
+For this project, Please install the below library
 
 - **Install Office365-REST-Python-Client**
 - **Command:**
@@ -31,12 +32,14 @@ Install all required libraries using the PIP command like below:
 ### Step 5
 For this project, download the "UI_SEM_Final_Code.py" file and paste in `C:\Users\your_folder` 
 
-In general, you can create a `.py` file in `C:\Users\your_folder` and paste your combined Streamlit code.
+In general, you can create a `.py` file in `C:\Users\your_folder` and paste your Streamlit code.
 
 ### Step 6
 For this project, download Carlisle Logo and copy to `C:\Users\your_folder`.
 
 - **Name of the logo:** `Carlisle_MasterLogo_RGB.jpg`
+
+In general, you can use any image and replace it in the "UI_SEM_Final_Code.py" file.
   
 ### Step 7
 Now run the script for the UI. 
@@ -49,24 +52,23 @@ Now run the script for the UI.
   **command:**
   streamlit run UI_SEM_Final_Code.py
 
-## Maintenance and Known Issue
+# Maintenance and Known Issues
 ## In case of Outage/System Restart
 
 1. Re-open the Anaconda 3 Terminal using Anaconda Navigator.
 2. Run the command: 
    
-   streamlit run UI_SEM_Final_Code.py (example)
+   streamlit run UI_SEM_Final_Code.py (For this project)
 
 3. Test the Network URL. The URL might change every time if you re-run the script. Double-check and provide the new URL to the users.
 
-- **Note:** Bi-weekly login into RDP and check if the script is running.
+4. Bi-weekly login into RDP and check if the script is running
+5. If you make changes to the script, instead of refreshing the URL in the browser, please make sure to restart the Anaconda terminal and run the script again. This would help solve any screen-struck issues.
 
-## URLs
+## URL
 
 - For SEM: `http://10.4.204.140:8501`
-- For RMQ: `http://10.4.204.140:8502`
 
-## Tips
 
-If you make changes to the script, instead of refreshing the URL in the browser, please make sure to restart the Anaconda terminal and run the script again. This would help solve any screen-struck issues.
+
 
