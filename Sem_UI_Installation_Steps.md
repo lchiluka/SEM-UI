@@ -4,7 +4,9 @@
 ## Steps to be followed before running the script for UI in Remote Desktop
 
 ### Step 1
-Download Anaconda 3 on your Remote Desktop.
+Before installing anaconda, run this **command** - pip install streamlit
+
+if you are unable to install streamlit, download Anaconda 3 on your Remote Desktop.
 
 ### Step 2
 Open Anaconda 3 terminal from Anaconda Navigator and install Streamlit.
