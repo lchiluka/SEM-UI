@@ -7,6 +7,7 @@
 Before installing anaconda, run this **command** - pip install streamlit
 
 if you are unable to install streamlit, download Anaconda 3 on your Remote Desktop.
+URL - https://www.anaconda.com/download/success
 
 ### Step 2
 Open Anaconda 3 terminal from Anaconda Navigator and install Streamlit.
