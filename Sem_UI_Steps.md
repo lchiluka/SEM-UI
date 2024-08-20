@@ -1,36 +1,26 @@
 
-# STREAMLIT UI GENERAL STEPS
+# STREAMLIT UI Installation Instructions
 
 ## Steps to be followed before running the script for UI in Remote Desktop
 
 ### Step 1
-Create a `.py` file in `C:\Users\your_folder` and paste your combined Streamlit code.
+Download Anaconda 3 on your Remote Desktop.
 
 ### Step 2
-Copy Carlisle Logo to `C:\Users\your_folder`.
-
-- **Name of the logo:** `Carlisle_MasterLogo_RGB.jpg`
-
-### Step 3
-Download Anaconda 3 on your PC.
-
-### Step 4
 Open Anaconda 3 terminal from Anaconda Navigator and install Streamlit.
 
 - **Command:**
   
   pip install streamlit
   
-
-### Step 5
+### Step 3
 If you encounter errors, update using the following command:
 
 - **Command:**
   
   conda update streamlit
   
-
-### Step 6
+### Step 4
 Install all required libraries using the PIP command like below:
 
 - **Install Office365-REST-Python-Client**
@@ -38,24 +28,34 @@ Install all required libraries using the PIP command like below:
   
   pip install Office365-REST-Python-Client
   
+### Step 5
+For this project, download the "UI_SEM_Final_Code.py" file and paste in `C:\Users\your_folder` 
 
+In general, you can create a `.py` file in `C:\Users\your_folder` and paste your combined Streamlit code.
+
+### Step 6
+For this project, download Carlisle Logo and copy to `C:\Users\your_folder`.
+
+- **Name of the logo:** `Carlisle_MasterLogo_RGB.jpg`
+  
 ### Step 7
-Now run the script for the UI.
+Now run the script for the UI. 
 
 - **Example script:** `app.py`
 - **Command:**
-  
   streamlit run app.py
   
+  For this project -
+  **command:**
+  streamlit run UI_SEM_Final_Code.py
 
+## Maintenance and Known Issue
 ## In case of Outage/System Restart
 
 1. Re-open the Anaconda 3 Terminal using Anaconda Navigator.
 2. Run the command: 
    
-   streamlit run app.py
-   
-   (example)
+   streamlit run UI_SEM_Final_Code.py (example)
 
 3. Test the Network URL. The URL might change every time if you re-run the script. Double-check and provide the new URL to the users.
 
