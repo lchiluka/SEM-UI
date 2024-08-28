@@ -1,0 +1,9 @@
+
+streamlit
+office365-runtime-auth
+office365-sharepoint
+opencv-python-headless
+numpy
+pandas
+matplotlib
+scipy
