@@ -327,8 +327,9 @@ def process_image(image_path, pixel_to_um=2):
             elongation = abs(1 - (w / h))
             if len(cnt) >= 5:
                 ellipse = cv2.fitEllipse(cnt)
-                (major_axis, minor_axis), angle = ellipse[1], ellipse[2]
-                orientation = angle
+                angle = ellipse[2]
+                # Instead of relying on the default angle, we manually flip the angle.
+                orientation = (90 - angle) if angle < 90 else (270 - angle)
             else:
                 orientation = np.nan
             roundness = (4 * area) / (np.pi * (mean_diameter ** 2))
@@ -431,6 +432,49 @@ def calculate_statistics(df, avg_vertical_acs, avg_horizontal_acs, ar):
 
     return stats
 
+def create_image2_format_table(df, avg_vertical_acs, avg_horizontal_acs, ar):
+    """
+    Creates a table with averages and standard deviations, similar to the second image format.
+    
+    Args:
+        df (pandas.DataFrame): The DataFrame containing region properties.
+        avg_vertical_acs (float): The average vertical ACS.
+        avg_horizontal_acs (float): The average horizontal ACS.
+        ar (float): The Anisotropy Ratio (AR).
+    
+    Returns:
+        pandas.DataFrame: A DataFrame containing averages and standard deviations in the required format.
+    """
+    # Create a DataFrame for averages and standard deviations
+    stats_image2 = df.describe().T[['mean', 'std']]
+    
+    # Renaming the columns for clarity
+    stats_image2.columns = ['Average', 'STD']
+    
+    # Round the values to 2 decimal places
+    stats_image2 = stats_image2.round(2)
+    
+    # Add additional calculated metrics (e.g., ACS and AR)
+    total_area = df['Projected area (µm²)'].sum()
+    if total_area > 0:
+        area_weighted_equivalent_diameter = df['Area x equivalent diameter (µm)'].sum() / total_area
+        stats_image2.loc['Area weighted equivalent diameter (µm)', 'Average'] = round(area_weighted_equivalent_diameter, 2)
+    
+    # Adding vertical, horizontal ACS, and AR
+    stats_image2.loc['Average vertical ACS (µm)', 'Average'] = round(avg_vertical_acs, 2)
+    stats_image2.loc['Average horizontal ACS (µm)', 'Average'] = round(avg_horizontal_acs, 2)
+    stats_image2.loc['Anisotropy Ratio (AR)', 'Average'] = round(ar, 2)
+
+    # Drop 'Area x equivalent diameter (µm)'
+    if 'Area x equivalent diameter (µm)' in stats_image2.index:
+        stats_image2 = stats_image2.drop('Area x equivalent diameter (µm)')
+
+    # Add the row names and reset index for display purposes
+    stats_image2 = stats_image2.reset_index().rename(columns={'index': 'Metric'})
+
+    return stats_image2
+
+
 def plot_and_save_image(image, contours, centroids, output_path):
     """
     Plots and saves an image with overlaid contours and centroids.
@@ -505,8 +549,8 @@ def traverse_and_process(base_dir, export_dir, max_files=2, pixel_to_um=2):
     start_time = time.time()
     file_count = 0
 
-    subfolder_md_dfs = {}
-    subfolder_td_dfs = {}
+    # Dictionary to store results from all folders
+    subfolder_dfs = {}
 
     with ThreadPoolExecutor(max_workers=24) as executor:
         futures = []
@@ -515,80 +559,76 @@ def traverse_and_process(base_dir, export_dir, max_files=2, pixel_to_um=2):
             if 'Exported Results' in root:
                 continue
 
-            if os.path.basename(base_dir) not in root and base_dir not in root:
-                continue
+            # Process all PNG files, not just 'MD' or 'TD'
+            png_files = [f for f in files if f.endswith('.PNG')][:max_files]
 
-            md_files = [f for f in files if f.endswith('.PNG') and 'MD' in f][:max_files]
-            td_files = [f for f in files if f.endswith('.PNG') and 'TD' in f][:max_files]
-
-            for file in md_files:
+            # Submit the processing of each PNG file to the executor pool
+            for file in png_files:
                 futures.append(executor.submit(process_file, root, file, base_dir, export_dir, pixel_to_um))
 
-            for file in td_files:
-                futures.append(executor.submit(process_file, root, file, base_dir, export_dir, pixel_to_um))
-
+        # Collect results as they are completed
         for future in as_completed(futures):
             result = future.result()
             if result:
                 subfolder_key, file, properties_df, avg_vertical_acs, avg_horizontal_acs, ar = result
-                if 'MD' in file:
-                    if subfolder_key not in subfolder_md_dfs:
-                        subfolder_md_dfs[subfolder_key] = properties_df
-                    else:
-                        subfolder_md_dfs[subfolder_key] = pd.concat([subfolder_md_dfs[subfolder_key], properties_df], ignore_index=True)
-                    subfolder_md_dfs[subfolder_key]['Average vertical ACS (µm)'] = avg_vertical_acs
-                    subfolder_md_dfs[subfolder_key]['Average horizontal ACS (µm)'] = avg_horizontal_acs
-                    subfolder_md_dfs[subfolder_key]['Anisotropy Ratio (AR)'] = ar
+
+                # Store results in the dictionary for each folder
+                if subfolder_key not in subfolder_dfs:
+                    subfolder_dfs[subfolder_key] = properties_df
                 else:
-                    if subfolder_key not in subfolder_td_dfs:
-                        subfolder_td_dfs[subfolder_key] = properties_df
-                    else:
-                        subfolder_td_dfs[subfolder_key] = pd.concat([subfolder_td_dfs[subfolder_key], properties_df], ignore_index=True)
-                    subfolder_td_dfs[subfolder_key]['Average vertical ACS (µm)'] = avg_vertical_acs
-                    subfolder_td_dfs[subfolder_key]['Average horizontal ACS (µm)'] = avg_horizontal_acs
-                    subfolder_td_dfs[subfolder_key]['Anisotropy Ratio (AR)'] = ar
+                    subfolder_dfs[subfolder_key] = pd.concat([subfolder_dfs[subfolder_key], properties_df], ignore_index=True)
+
+                # Add calculated metrics to the DataFrame
+                subfolder_dfs[subfolder_key]['Average vertical ACS (µm)'] = avg_vertical_acs
+                subfolder_dfs[subfolder_key]['Average horizontal ACS (µm)'] = avg_horizontal_acs
+                subfolder_dfs[subfolder_key]['Anisotropy Ratio (AR)'] = ar
 
                 file_count += 1
-                #log(f"Processed file: {file}")
 
-    for subfolder_key, combined_md_df in subfolder_md_dfs.items():
+    # Save aggregated results to Excel files for each folder
+    for subfolder_key, combined_df in subfolder_dfs.items():
         output_subfolder = os.path.join(export_dir, subfolder_key)
         os.makedirs(output_subfolder, exist_ok=True)
 
-        if 'Centroid' in combined_md_df.columns:
-            combined_md_df = combined_md_df.drop(columns=['Centroid'])
+        if 'Centroid' in combined_df.columns:
+            combined_df = combined_df.drop(columns=['Centroid'])
 
-        output_file_md = os.path.join(output_subfolder, f"{os.path.basename(subfolder_key)} MD.xlsx")
+        output_file = os.path.join(output_subfolder, f"{os.path.basename(subfolder_key)}_aggregated.xlsx")
 
-        avg_vertical_acs = combined_md_df['Average vertical ACS (µm)'].iloc[0]
-        avg_horizontal_acs = combined_md_df['Average horizontal ACS (µm)'].iloc[0]
-        ar = combined_md_df['Anisotropy Ratio (AR)'].iloc[0]
+        avg_vertical_acs = combined_df['Average vertical ACS (µm)'].iloc[0]
+        avg_horizontal_acs = combined_df['Average horizontal ACS (µm)'].iloc[0]
+        ar = combined_df['Anisotropy Ratio (AR)'].iloc[0]
 
-        stats_md_df = calculate_statistics(combined_md_df, avg_vertical_acs, avg_horizontal_acs, ar)
+        # Calculate original statistics
+        original_stats_df = calculate_statistics(combined_df, avg_vertical_acs, avg_horizontal_acs, ar)
+        # Create the new table in the format similar to Image 2
+        image2_table_df = create_image2_format_table(combined_df, avg_vertical_acs, avg_horizontal_acs, ar)
 
-        with pd.ExcelWriter(output_file_md) as writer:
-            combined_md_df.to_excel(writer, sheet_name='Data', index=False)
-            stats_md_df.to_excel(writer, sheet_name='Statistics', index=False)
+        with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
+            combined_df.to_excel(writer, sheet_name='Data', index=False)
+            original_stats_df.to_excel(writer, sheet_name='Original Statistics', index=False)
+            image2_table_df.to_excel(writer, sheet_name='Image2 Format', index=False)
 
-    for subfolder_key, combined_td_df in subfolder_td_dfs.items():
-        output_subfolder = os.path.join(export_dir, subfolder_key)
-        os.makedirs(output_subfolder, exist_ok=True)
+            # Access the workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Image2 Format']
+        
+            # Define formatting for specific cells
+            yellow_format = workbook.add_format({'bg_color': '#FFFF00'})  # Yellow
+            blue_format = workbook.add_format({'bg_color': '#00BFFF'})    # Blue
+            orange_format = workbook.add_format({'bg_color': '#FFA500'})  # Orange
+            green_format = workbook.add_format({'bg_color': '#00FF00'})   # Green
 
-        if 'Centroid' in combined_td_df.columns:
-            combined_td_df = combined_td_df.drop(columns=['Centroid'])
-
-        output_file_td = os.path.join(output_subfolder, f"{os.path.basename(subfolder_key)} TD.xlsx")
-
-        avg_vertical_acs = combined_td_df['Average vertical ACS (µm)'].iloc[0]
-        avg_horizontal_acs = combined_td_df['Average horizontal ACS (µm)'].iloc[0]
-        ar = combined_td_df['Anisotropy Ratio (AR)'].iloc[0]
-
-        if not combined_td_df.empty:
-            stats_td_df = calculate_statistics(combined_td_df, avg_vertical_acs, avg_horizontal_acs, ar)
-
-            with pd.ExcelWriter(output_file_td) as writer:
-                combined_td_df.to_excel(writer, sheet_name='Data', index=False)
-                stats_td_df.to_excel(writer, sheet_name='Statistics', index=False)
+            # Apply conditional formatting for specific rows and metrics
+            for row_num, metric in enumerate(image2_table_df['Metric'], start=1):
+                if metric == 'Mean diameter (µm)':
+                    worksheet.write(row_num, 1, image2_table_df.loc[row_num - 1, 'Average'], yellow_format)
+                elif metric == 'Minimum diameter (µm)' or metric == 'Maximum diameter (µm)':
+                    worksheet.write(row_num, 1, image2_table_df.loc[row_num - 1, 'Average'], blue_format)
+                elif metric == 'Orientation (°)':
+                    worksheet.write(row_num, 1, image2_table_df.loc[row_num - 1, 'Average'], orange_format)
+                elif metric == 'Area weighted equivalent diameter (µm)':
+                    worksheet.write(row_num, 1, image2_table_df.loc[row_num - 1, 'Average'], green_format)
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -597,9 +637,10 @@ def traverse_and_process(base_dir, export_dir, max_files=2, pixel_to_um=2):
     log(f"Total execution time: {execution_time:.2f} seconds")
     log(f"Total files processed: {file_count}")
 
+
 def process_folder_and_subfolders(ctx, folder_url):
     """
-    Processes folders and subfolders in SharePoint, downloads image files, processes them locally,
+    Recursively processes folders and subfolders in SharePoint, downloads image files, processes them locally,
     and uploads the results back to SharePoint.
     
     Args:
@@ -615,45 +656,45 @@ def process_folder_and_subfolders(ctx, folder_url):
     if folder_name.startswith('final_output_'):
         return
 
-    # Only process folders named 'top', 'bottom', or 'core'
-    log(f"Folder Name: {folder_name}")
-    if folder_name.lower() in ['top', 'bottom', 'core']:
-        png_files_list = get_png_files_in_folder(ctx, folder_url)
+    # Process folders named 'core', 'top', or 'bottom', and their subfolders
+    log(f"Processing Folder: {folder_name}")
+    png_files_list = get_png_files_in_folder(ctx, folder_url)
 
-        if png_files_list:
-            # Create local folders for download and export
-            local_output_folder = f"output_{folder_name}"
-            local_export_folder = os.path.join(local_output_folder, 'export')
-            os.makedirs(local_output_folder, exist_ok=True)
+    if png_files_list:
+        # Create local folders for download and export
+        local_output_folder = f"output_{folder_name}"
+        local_export_folder = os.path.join(local_output_folder, 'export')
+        os.makedirs(local_output_folder, exist_ok=True)
 
-            # Download each .png file in the list
-            for folder_path, file_name in png_files_list:
-                file_relative_url = f"{folder_path}/{file_name}"
-                local_file_path = os.path.join(local_output_folder, file_name)
-                download_file(ctx, file_relative_url, local_file_path)
+        # Download each .png file in the list
+        for folder_path, file_name in png_files_list:
+            file_relative_url = f"{folder_path}/{file_name}"
+            local_file_path = os.path.join(local_output_folder, file_name)
+            download_file(ctx, file_relative_url, local_file_path)
 
-            # Process the images
-            traverse_and_process(local_output_folder, local_export_folder, max_files=50)
+        # Process the images
+        traverse_and_process(local_output_folder, local_export_folder, max_files=50)
 
-            # Upload processed files back to SharePoint
-            export_folder_in_sharepoint = f"{folder_url}/ultimate_output_{folder_name}"
-            create_folder(ctx, folder_url, f"ultimate_output_{folder_name}")
+        # Upload processed files back to SharePoint
+        export_folder_in_sharepoint = f"{folder_url}/final_output_{folder_name}"
+        create_folder(ctx, folder_url, f"final_output_{folder_name}")
 
-            for file_name in os.listdir(local_export_folder):
-                local_file_path = os.path.join(local_export_folder, file_name)
-                upload_file(ctx, export_folder_in_sharepoint, file_name, local_file_path)
+        for file_name in os.listdir(local_export_folder):
+            local_file_path = os.path.join(local_export_folder, file_name)
+            upload_file(ctx, export_folder_in_sharepoint, file_name, local_file_path)
 
-            # Delete the local downloaded folder
-            shutil.rmtree(local_output_folder)
-            print(f"Deleted local folder: {local_output_folder}")
+        # Delete the local downloaded folder
+        shutil.rmtree(local_output_folder)
+        log(f"Deleted local folder: {local_output_folder}")
 
-    # Recurse into subfolders
+    # Recurse into all subfolders
     folder = ctx.web.get_folder_by_server_relative_url(folder_url)
     folder.expand(["Folders"]).get().execute_query()
 
     for subfolder in folder.folders:
         subfolder_url = f"{folder_url}/{subfolder.properties['Name']}"
         process_folder_and_subfolders(ctx, subfolder_url)
+
 
 st.image("Carlisle_MasterLogo_RGB.jpg", width=500)  # Adjust the width as needed
 st.title("Select the folder in SharePoint for SEM Analysis")
